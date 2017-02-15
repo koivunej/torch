@@ -9,6 +9,7 @@ USAGE="Usage: ./torch.sh [options] pid
 
 Options:
 -d, --duration <num>  duration of sampling in seconds [default: 10]
+-e, --exec            instead of running script for duration, profile whole execution
 -o, --output <file>   file to save flamegraph to [default: ./flamegraph.svg]
 -h, --help            this message"
 
@@ -18,6 +19,10 @@ do
         -d|--duration)
             DURATION="$2"
             shift 2
+            ;;
+        -e|--exec)
+            EXEC="yes"
+            shift
             ;;
         -o|--output)
             OUTPUT="$2"
@@ -40,22 +45,24 @@ done
 
 PID=$1
 
-if [[ -z "$PID" ]]
+if [[ -z "${PID:-}" ]] && [[ -z "${EXEC:-}" ]]
 then
     echo "Error: pid is missing" >&2
     echo "$USAGE" >&2
     exit 1
 fi
 
-if [[ -z "$DURATION" ]]
+if [[ -z "${DURATION:-}" ]]
 then
     DURATION=10
 fi
 
-if [[ -z "$OUTPUT" ]]
+if [[ -z "${OUTPUT:-}" ]]
 then
     OUTPUT=./flamegraph.svg
 fi
+
+FREQ=199
 
 function get_temp_file() {
     local tmppath=${1:-/tmp}
@@ -69,9 +76,17 @@ function get_temp_file() {
 }
 
 TEMP_FILE=$(get_temp_file /tmp torch)
-echo "sampling pid $PID for $DURATION seconds" && \
-perf record -o $TEMP_FILE -F 199 -p $PID -a --call-graph dwarf -- sleep $DURATION > /dev/null && \
-echo "saving flame graph to $OUTPUT" && \
-perf script -i $TEMP_FILE | "$DIR/stackcollapse-perf.pl" | "$DIR/flamegraph.pl" > $OUTPUT && \
+
+if [ -z "$EXEC" ]; then
+	echo "sampling pid $PID for $DURATION seconds"
+	perf record -o $TEMP_FILE -F $FREQ -p $PID -a --call-graph dwarf -- sleep $DURATION > /dev/null
+else
+	echo "profiling execution of $@"
+	perf record -o $TEMP_FILE -F $FREQ -a --call-graph dwarf -- $@ > /dev/null
+fi
+
+echo "saving flame graph to $OUTPUT"
+perf script -i $TEMP_FILE | "$DIR/stackcollapse-perf.pl" | "$DIR/flamegraph.pl" > $OUTPUT
 echo "done."
+
 rm -rf $TEMP_FILE

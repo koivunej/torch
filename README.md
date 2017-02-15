@@ -16,6 +16,7 @@ Usage: ./torch.sh [options] pid
 
 Options:
 -d, --duration <num>  duration of sampling in seconds [default: 10]
+-e, --exec            instead of running script for duration, profile whole execution
 -o, --output <file>   file to save flamegraph to [default: ./flamegraph.svg]
 -h, --help            this message
 ```
