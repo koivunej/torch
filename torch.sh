@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+
+set -e
+set -u
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 USAGE="Usage: ./torch.sh [options] pid
 
 Options:
@@ -66,6 +72,6 @@ TEMP_FILE=$(get_temp_file /tmp torch)
 echo "sampling pid $PID for $DURATION seconds" && \
 perf record -o $TEMP_FILE -F 199 -p $PID -a --call-graph dwarf -- sleep $DURATION > /dev/null && \
 echo "saving flame graph to $OUTPUT" && \
-perf script -i $TEMP_FILE | ./stackcollapse-perf.pl | ./flamegraph.pl > $OUTPUT && \
+perf script -i $TEMP_FILE | "$DIR/stackcollapse-perf.pl" | "$DIR/flamegraph.pl" > $OUTPUT && \
 echo "done."
 rm -rf $TEMP_FILE
